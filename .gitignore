@@ -34,6 +34,3 @@ pnpm-debug.log*
 
 # Figma plugin files
 __figma__/
-
-# Data files
-src/lib/data.ts
