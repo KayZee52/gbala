@@ -20,15 +20,6 @@ The platform includes several specialized AI flows:
 4. `gbala-chatbot-flow.ts` - Powers the interactive chatbot for user engagement
 5. `send-sms-flow.ts` - Manages SMS notifications for critical alerts
 
-## 📁 Project Structure
-
-The project follows a well-organized structure with dedicated directories for:
-
-- `src/app` - Main application components and pages
-- `src/components` - Reusable UI components
-- `src/ai` - AI flow implementations
-- `src/hooks` - Custom React hooks
-- `src/lib` - Utility functions and shared data
 
 ## 🛠 Technologies Used
 
