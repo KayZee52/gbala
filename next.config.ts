@@ -3,10 +3,10 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false, // Enable TypeScript build errors in production
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false, // Enable ESLint errors in production
   },
   images: {
     remotePatterns: [
@@ -24,7 +24,8 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  reactStrictMode: false,
+  reactStrictMode: true, // Enable React Strict Mode for better development practices
+  output: 'standalone', // Enable standalone output for better deployment support
 };
 
 export default nextConfig;

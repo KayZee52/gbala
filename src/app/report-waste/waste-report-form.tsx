@@ -344,7 +344,7 @@ export default function WasteReportForm() {
                     </FormDescription>
                   ) : (
                      <FormDescription>
-                      You can also click 'Report Waste' on the map to autofill this.
+                      You can also click &apos;Report Waste&apos; on the map to autofill this.
                     </FormDescription>
                   )}
                   <FormMessage />

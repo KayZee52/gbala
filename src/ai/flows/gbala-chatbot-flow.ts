@@ -10,8 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { calculateFloodRisk } from './calculate-flood-risk-flow';
-import { mockWasteReports, mockDumpSites, wasteTypes } from '@/lib/data';
 
 interface ChatMessage {
     role: 'user' | 'model';
@@ -36,63 +34,22 @@ export type GbalaChatbotOutput = z.infer<typeof GbalaChatbotOutputSchema>;
 export async function gbalaChatbot(
   input: GbalaChatbotInput
 ): Promise<GbalaChatbotOutput> {
-  return gbalaChatbotFlow(input);
-}
-
-
-// Tool: Get Flood Risk
-const getFloodRisk = ai.defineTool(
-  {
-    name: 'getFloodRisk',
-    description: 'Gets the current flood risk for a specified area. Use this if the user asks about flood status or risk levels.',
-    inputSchema: z.object({
-      areaName: z.string().describe('The area to check the flood risk for, e.g., "Monrovia".'),
-    }),
-    outputSchema: z.object({
-        riskLevel: z.string(),
-        reasoning: z.string(),
-    })
-  },
-  async (input) => {
-    // In a real app, weather would come from an API
-    const weatherForecast = 'Increased rainfall expected.';
-    return calculateFloodRisk({
-      reports: mockWasteReports,
-      areaName: input.areaName,
-      weatherForecast,
-    });
+  const llmResponse = await prompt(input);
+  
+  // If the model gives a direct text response, return it.
+  if (llmResponse.output?.response) {
+    return { response: llmResponse.output.response, action: llmResponse.output.action };
   }
-);
-
-
-// Tool: Find Dump Sites
-const findDumpSites = ai.defineTool(
-    {
-        name: 'findDumpSites',
-        description: `Finds waste dump sites or recycling centers for a specific waste type. If the user asks for something "near me" and does not provide a location, you can leave the location field blank, and the system will search near the user's last known location. If the user provides a specific neighborhood or area, use that as the location.`,
-        inputSchema: z.object({
-            wasteType: z.string().describe(`The type of waste. Available types are: ${wasteTypes.join(', ')}`),
-            location: z.string().optional().describe('The user\'s current location or neighborhood to find the nearest dump sites. If the user says "near me", this can be left blank.'),
-        }),
-        outputSchema: z.array(z.object({
-            name: z.string(),
-            address: z.string(),
-        }))
-    },
-    async (input) => {
-        // In a real app, you'd use the location to sort by distance.
-        // For this prototype, we'll just filter by type. If location is provided, we could filter by neighborhood.
-        const filteredSites = mockDumpSites.filter(site => site.acceptedWaste.includes(input.wasteType));
-        return filteredSites.map(({ name, address }) => ({ name, address }));
-    }
-)
+  
+  // Fallback response if no text or tool call is generated
+  return { response: "I'm sorry, I'm having trouble understanding. Could you please rephrase your request?" };
+}
 
 
 const prompt = ai.definePrompt({
   name: 'gbalaChatbotPrompt',
   input: { schema: GbalaChatbotInputSchema },
   output: { schema: GbalaChatbotOutputSchema },
-  tools: [getFloodRisk, findDumpSites],
   prompt: `You are the Gbala Assistant, a friendly and helpful AI chatbot for the Gbala waste management app in Liberia.
 
 Your purpose is to help citizens with these tasks:
@@ -128,51 +85,6 @@ const gbalaChatbotFlow = ai.defineFlow(
     // If the model gives a direct text response, return it.
     if (llmResponse.output?.response) {
       return { response: llmResponse.output.response, action: llmResponse.output.action };
-    }
-    
-    // If the model calls a tool, process the tool's output.
-    if (llmResponse.toolCalls.length > 0) {
-        let toolResponseText = 'Based on the information I found:\n';
-
-        for (const toolCall of llmResponse.toolCalls) {
-            const toolOutput = toolCall.output;
-            if (toolCall.toolName === 'findDumpSites') {
-                const sites = toolOutput as any[];
-                if (sites.length > 0) {
-                    const wasteType = (toolCall.input as any).wasteType;
-                    // This is a special instruction for the model. Instead of listing sites,
-                    // we'll instruct it to return a response with an action.
-                    const responseWithAction = {
-                        response: `I found ${sites.length} ${wasteType} dump sites near you.`,
-                        action: {
-                            type: 'VIEW_DUMP_SITES' as const,
-                            filter: wasteType,
-                        }
-                    };
-                    return responseWithAction;
-                } else {
-                    toolResponseText += `\nI couldn't find any dump sites for that specific waste type. You could try searching for 'Other' or 'Mixed' waste.`;
-                }
-            } else if (toolCall.toolName === 'getFloodRisk') {
-                 const risk = toolOutput as any;
-                 toolResponseText += `\nThe flood risk is currently ${risk.riskLevel}. Reason: ${risk.reasoning}`;
-            } else {
-                toolResponseText += `\n- ${toolCall.toolName} results: ${JSON.stringify(toolOutput)}\n`;
-            }
-        }
-
-        // This part now primarily handles the fallback cases, like flood risk.
-        const finalResponse = await ai.generate({
-            prompt: `You are the Gbala chatbot. You have just used some tools to answer the user's request.
-The user's original query was: "${input.query}"
-The conversation history is: ${JSON.stringify(input.history)}
-The result from your tools is:
-${toolResponseText}
-
-Now, formulate a friendly, human-readable response based on this data. Do not mention the tools you used. Just give the answer directly. Keep it simple and direct.`,
-        });
-
-        return { response: finalResponse.text };
     }
     
     // Fallback response if no text or tool call is generated
